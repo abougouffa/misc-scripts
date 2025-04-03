@@ -1,17 +1,43 @@
-import os, re, shutil, argparse
+import os, re, shutil, argparse, datetime
 from PIL import Image, ExifTags
 import pillow_heif
 
-FILENAME_PATTERNS = (
+YMD_FILENAME_PATTERNS = (
     r"^((IMG|MOV|VID|PANO)[_-])?(?P<year>\d{4})[_-](?P<month>\d{2})[_-](?P<day>\d{2}).*\.\w+$",
     r"^((IMG|MOV|VID|PANO)[_-])?(?P<year>\d{4})(?P<month>\d{2})(?P<day>\d{2}).*\.\w+$",
 )
 
+DMY_FILENAME_PATTERNS = (
+    r"^((IMG|MOV|VID|PANO)[_-])?(?P<day>\d{2})[_-](?P<month>\d{2})[_-](?P<year>\d{4}).*\.\w+$",
+    r"^((IMG|MOV|VID|PANO)[_-])?(?P<day>\d{2})(?P<month>\d{2})(?P<year>\d{4}).*\.\w+$",
+)
+
+MIN_YEAR = 2000
+
+def validate_date(y, m, d):
+    if int(y) >= MIN_YEAR:
+        try:
+            _ = datetime.datetime(year=int(y), month=int(m), day=int(d))
+            return True
+        except ValueError:
+            pass
+    return False
+
+
+def date_from_pattern(pattern, filename):
+    if match := re.match(pattern, filename):
+        year, month, day = match.group("year"), match.group("month"), match.group("day")
+        if validate_date(year, month, day):
+            return f"{year}-{month}-{day}"
+    return None
+
 
 def get_dir_for_file_from_patterns(filename: str) -> None | str:
-    for pattern in FILENAME_PATTERNS:
-        if match := re.match(pattern, filename):
-            return f"{match.group("year")}-{match.group("month")}-{match.group("day")}"
+    for pattern_index, pattern in enumerate(YMD_FILENAME_PATTERNS):
+        if dirname := date_from_pattern(pattern, filename):
+            return dirname
+        elif dirname := date_from_pattern(DMY_FILENAME_PATTERNS[pattern_index], filename):
+            return dirname
     return None
 
 
