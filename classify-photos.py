@@ -95,4 +95,5 @@ def main():
             print(f"WARN: Cannot determine the date for {file}")
 
 
-main()
+if __name__ == "__main__":
+    main()
