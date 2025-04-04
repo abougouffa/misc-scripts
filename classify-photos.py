@@ -14,6 +14,7 @@ DMY_FILENAME_PATTERNS = (
 
 MIN_YEAR = 2000
 
+
 def validate_date(y, m, d):
     if int(y) >= MIN_YEAR:
         try:
@@ -44,12 +45,11 @@ def get_dir_for_file_from_patterns(filename: str) -> None | str:
 def get_dir_for_file_from_exif(filename: str) -> None | str:
     try:
         img = Image.open(filename)
-        exif = { ExifTags.TAGS[k]: v for k, v in img.getexif().items() if k in ExifTags.TAGS }
-        img.close()
-        if datetime := exif.get("DateTime"):
+        if datetime := img.getexif().get(ExifTags.Base.DateTime):
             if match := re.match(r'^(?P<year>\d{4}):(?P<month>\d{2}):(?P<day>\d{2})', datetime):
                 return f"{match.group("year")}-{match.group("month")}-{match.group("day")}"
-    except:
+        img.close()
+    except Exception:
         pass
     return None
 
