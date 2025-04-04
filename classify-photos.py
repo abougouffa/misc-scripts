@@ -2,7 +2,12 @@
 
 import os, re, shutil, argparse, datetime
 from PIL import Image, ExifTags
-import pillow_heif
+
+try:
+    import pillow_heif
+except ModuleNotFoundError:
+    pillow_heif = None
+
 
 YMD_FILENAME_PATTERNS = (
     r"^((IMG|MOV|VID|PANO)[_-])?(?P<year>\d{4})[_-](?P<month>\d{2})[_-](?P<day>\d{2}).*\.\w+$",
@@ -57,8 +62,9 @@ def get_dir_for_file_from_exif(filename: str, suffix: str = "") -> None | str:
 
 
 def main():
-    # Add support for HEIF pictures
-    pillow_heif.register_heif_opener()
+    # Add support for HEIF pictures if available
+    if pillow_heif:
+        pillow_heif.register_heif_opener()
 
     # Prepare the command line arguments parser
     parser = argparse.ArgumentParser(description="Classify photos in directories based on the file name patterns or the Exif metadata")
