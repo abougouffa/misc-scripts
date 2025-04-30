@@ -36,7 +36,7 @@ def date_from_pattern(pattern, filename):
     if match := re.match(pattern, filename):
         year, month, day = match.group("year"), match.group("month"), match.group("day")
         if validate_date(year, month, day):
-            return f"{year}-{month}-{day}"
+            return f"{year}/{year}-{month}-{day}"
     return None
 
 
@@ -54,7 +54,8 @@ def get_dir_for_file_from_exif(filename: str, suffix: str = "") -> None | str:
         img = Image.open(filename)
         if datetime := img.getexif().get(ExifTags.Base.DateTime):
             if match := re.match(r'^(?P<year>\d{4}):(?P<month>\d{2}):(?P<day>\d{2})', datetime):
-                return f"{match.group("year")}-{match.group("month")}-{match.group("day")}{suffix}"
+                year, month, day = match.group("year"), match.group("month"), match.group("day")
+                return f"{year}/{year}-{month}-{day}{suffix}"
         img.close()
     except Exception:
         pass
@@ -71,6 +72,7 @@ def main():
     parser.add_argument("--input", action="store", dest="input_dir")
     parser.add_argument("--output", action="store", dest="output_dir")
     parser.add_argument("--action", action="store", dest="action", default="move")
+    parser.add_argument("--existing", action="store", dest="existing", default="skip")
     parser.add_argument("--suffix", action="store", dest="suffix", default="")
     # --mode=[auto|pattern|metadata]
     parser.add_argument("--mode", action="store", dest="mode", default="auto")
@@ -90,13 +92,38 @@ def main():
             target_dir = os.path.join(output_dir, outdir)
 
         if target_dir:
-            print(f"Moving {file} to {target_dir}")
-            if not os.path.isdir(target_dir):
-                os.mkdir(target_dir)
-            if args.action == "copy":
-                shutil.copy(f"{full_filename}", target_dir)
-            elif args.action == "move":
-                shutil.move(f"{full_filename}", target_dir)
+            action = "Moving" if args.action == "move" else "Copying"
+            print(f"{action} {file} to {target_dir}")
+            target_filename = os.path.join(target_dir, file)
+            fname_ext = file.split(".")
+            target_filename_alt = ".".join(fname_ext[:-1] + [fname_ext[-1].lower()])
+            file_exists = (os.path.exists(target_filename) or os.path.exists(target_filename_alt))
+
+            if file_exists:
+                print(f"File {file} exits on destination directory... ", end="")
+
+                if args.existing == "rename":
+                    fname_ext = target_filename.split(".")
+                    i = 0
+                    while True:
+                        i += 1
+                        target_filename = ".".join(fname_ext[:-1]) + "-" + str(i) + "." + fname_ext[-1]
+                        target_filename_alt = ".".join(fname_ext[:-1]) + "-" + str(i) + "." + fname_ext[-1].lower()
+                        if not (os.path.exists(target_filename) or os.path.exists(target_filename_alt)):
+                            break
+                    print(f"Renaming to {target_filename}")
+                elif args.existing == "overwrite":
+                    print("Overwriting")
+                else:
+                    print("Skipping")
+
+            if not file_exists or args.existing in ["rename", "overwrite"]:
+                if not os.path.isdir(target_dir):
+                    os.makedirs(target_dir)
+                if args.action == "copy":
+                    shutil.copy(full_filename, target_filename)
+                elif args.action == "move":
+                    shutil.move(full_filename, target_filename)
         else:
             print(f"WARN: Cannot determine the date for {file}")
 
